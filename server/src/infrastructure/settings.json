@@ -1,3 +1,7 @@
 {
-  "repositoryPath": "repository/repository.xml"
+  "repositoryPath": "repository/repository.xml",
+  "coordinator": {
+    "host": "localhost",
+    "port": 5025
+  }
 }
