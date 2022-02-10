@@ -1,4 +1,10 @@
 {
-  "repositoryPath": "../server/resources/repository/repository.xml",
-  "port": 5025
+  "repositoryPath": "../database/repository.xml",
+  "port": 5025,
+  "replicationServers": [
+    {
+      "host": "localhost",
+      "port": 6025
+    }
+  ]
 }

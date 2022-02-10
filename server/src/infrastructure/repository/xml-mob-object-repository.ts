@@ -5,8 +5,7 @@ import {MobObject, MobObjectRepository} from "../../domain/mob-object";
 
 
 export function mapXmlToMobObject(xmlMobObject: XmlMobObject): MobObject {
-    return {
-        action: xmlMobObject.action,
+    return <MobObject>{
         name: xmlMobObject.name,
         timestamp: Date.parse(xmlMobObject.dateAdded)
     };
@@ -18,7 +17,6 @@ export function mapXmlToMobObject(xmlMobObject: XmlMobObject): MobObject {
  */
 export function mapMobObjectToXml(mobObject: MobObject): XmlMobObject {
     return {
-        action: mobObject.action,
         name: mobObject.name,
         dateAdded: new Date(mobObject.timestamp).toLocaleDateString('es-VE')
     };
@@ -65,8 +63,8 @@ export default class XmlMobObjectRepository implements MobObjectRepository {
             console.log(`✔ xmlString created - ${xmlString}`);
             console.log(`Persisting...`);
             return await writeContentsToFile(this.xmlPath, xmlString);
-        } catch (e: any) {
-            throw `Could not persist list - ${toString(e)}`;
+        } catch (e) {
+            throw `Could not persist list - ${e instanceof Error ? e.message : e as string}`;
         }
     }
 
@@ -84,42 +82,9 @@ export default class XmlMobObjectRepository implements MobObjectRepository {
     async findAll(): Promise<MobObject[]> {
         try {
             return await this._parseXmlContents();
-        } catch (e: any) {
-            throw `Could not findAll: ${toString(e)}`;
+        } catch (e) {
+            throw `Could not findAll: ${e instanceof Error ? e.message : e as string}`;
         }
-    }
-
-    async findMany(action: string): Promise<MobObject[]> {
-        try {
-            const all = await this.findAll();
-            return all.filter(obj => obj.action === action);
-        } catch (e: any) {
-            throw `Could not findMany: ${toString(e)}`;
-        }
-    }
-
-    async findOne(name: string): Promise<MobObject | undefined> {
-        try {
-            const all = await this.findAll();
-            return all.find(obj => obj.name === name);
-        } catch (e: any) {
-            throw `Could not findOne: ${toString(e)}`;
-        }
-    }
-
-    async replace(name: string, mobObject: MobObject): Promise<MobObject> {
-        const all = await this.findAll();
-        const index = all.findIndex(obj => obj.name === name);
-        if (index !== -1) {
-            all[index] = mobObject;
-        } else {
-            all.push(mobObject);
-        }
-
-        if (!await this._persistList(all)) {
-            throw `Could not replace \`${name}\``;
-        }
-        return mobObject;
     }
 
     async save(mobObject: MobObject): Promise<MobObject> {

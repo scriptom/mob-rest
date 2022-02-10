@@ -4,16 +4,14 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "lint": "server/node_modules/.bin/eslint . --ext .ts",
-    "compile": "server/node_modules/.bin/tsc",
+    "lint": "eslint . --ext .ts",
+    "compile": "tsc",
     "prebuild": "npm run lint",
-    "build": "npm run clean && npm run lint && npm run compile && npm run copy-assets",
-    "prestart": "npm run lint && npm run compile && npm run copy-assets",
+    "build": "npm run clean && npm run lint && npm run compile",
+    "prestart": "npm run lint && npm run compile",
     "start": "set DEBUG=express:* & node dist/index.js",
-    "start:dev": "server/node_modules/.bin/nodemon --config nodemon.json --exec npm run start",
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "copy-assets": "server/node_modules/.bin/copyfiles -u 1 resources/** dist/resources",
-    "clean": "server/node_modules/.bin/rimraf dist/"
+    "start:dev": "nodemon --config nodemon.json --exec npm run start",
+    "clean": "rimraf dist/"
   },
   "author": "Tomás El Fakih; Robert González",
   "license": "ISC",

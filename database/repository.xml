@@ -1,0 +1,7 @@
+<objects>
+  <object name="Test Object" dateAdded="7/1/2022"/>
+  <object name="Test Object 2" dateAdded="7/1/2022"/>
+  <object name="Test Object 3" dateAdded="7/1/2022"/>
+  <object name="Objeto #1 después de refactor" dateAdded="2/10/2022"/>
+  <object name="Este objeto será replicado" dateAdded="10/2/2022"/>
+</objects>

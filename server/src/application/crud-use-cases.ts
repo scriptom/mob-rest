@@ -1,21 +1,18 @@
-import {Action, MobObject, MobObjectRepository} from "../domain/mob-object";
-import {toString} from "../infrastructure/utils";
+import {MobObject, MobObjectRepository} from "../domain/mob-object";
 import {UseCase} from "./use-case";
 
 export class AddMobObject implements UseCase<boolean> {
     private _error = '';
 
     constructor(private readonly repository: MobObjectRepository,
-                private readonly name: string,
-                private readonly action: Action) {
+                private readonly name: string) {
     }
 
     async execute(): Promise<boolean> {
-        const {name, action} = this;
+        const {name} = this;
         const timestamp: number = Date.now();
         const mobObject: MobObject = {
             name,
-            action,
             timestamp
         };
         console.log(`Saving MobObject=${JSON.stringify(mobObject)}`);
@@ -23,7 +20,7 @@ export class AddMobObject implements UseCase<boolean> {
             const saved = await this.repository.save(mobObject);
             return saved.name !== null;
         } catch (err) {
-            this._error = toString(err);
+            this._error = err instanceof Error ? err.message : err as string;
             return false;
         }
     }
@@ -43,43 +40,19 @@ export class GetAllMobObjects implements UseCase<MobObject[]> {
     }
 
     execute(): Promise<MobObject[]> {
-        console.log('Getting all mob objects');
-        return this.repository.findAll();
-    }
-}
-
-export class GetMobObjectsByAction implements UseCase<MobObject[]> {
-    private _error = '';
-    get error(): string {
-        return this._error;
-    }
-
-    constructor(private readonly repository: MobObjectRepository,
-                private readonly action: string) {
-    }
-
-    execute(): Promise<MobObject[]> {
-        console.log(`Getting all mob objects with action=${this.action}`);
-        return this.repository.findMany(this.action);
-    }
-}
-
-export class GetMobObjectByName implements UseCase<MobObject | undefined> {
-    get error(): string {
-        return '';
-    }
-
-    constructor(private readonly repository: MobObjectRepository,
-                private readonly name: string) {
-    }
-
-    execute(): Promise<MobObject | undefined> {
-        console.log(`Getting mob object with name=${this.name}`);
-        return this.repository.findOne(this.name);
+        try {
+            console.log('Getting all mob objects');
+            return this.repository.findAll();
+        } catch (err) {
+            this._error = err instanceof Error ? err.message : err as string;
+            return Promise.resolve([]);
+        }
     }
 }
 
 export class DeleteMobObject implements UseCase<boolean> {
+    private _error = '';
+
     constructor(private readonly repository: MobObjectRepository,
                 private readonly name: string) {
     }
@@ -88,13 +61,14 @@ export class DeleteMobObject implements UseCase<boolean> {
         try {
             await this.repository.delete(this.name);
             return true;
-        } catch {
+        } catch (err) {
+            this._error = err instanceof Error ? err.message : err as string;
             return false;
         }
     }
 
     get error(): string {
-        return '';
+        return this._error;
     }
 }
 

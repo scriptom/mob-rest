@@ -1,44 +1,22 @@
-import express, {Response, Router} from "express";
+import express, {Router} from "express";
 import XmlMobObjectRepository from "./repository/xml-mob-object-repository";
 import {MobObjectCreateRequest} from "./webservice/requests";
 import {constants as HttpStatus} from "http2";
 import {MobObjectListResponseInstance} from "./webservice/response";
-import {
-    AddMobObject,
-    DeleteMobObject,
-    GetAllMobObjects,
-    GetMobObjectByName,
-    GetMobObjectsByAction
-} from '../application/crud-use-cases';
 import * as settings from './settings.json';
 import {Action, MobObject, MobObjectRepository} from "../domain/mob-object";
 import {UseCase} from "../application/use-case";
 import ReplicationService from "../application/replication-service";
 import SocketReplicationService from "./replication/socket-replication-service";
+import {AddMobObject, DeleteMobObject, GetAllMobObjects} from '../application/crud-use-cases';
 import {ReplicateUseCase, RestoreUseCase} from "../application/replication-use-cases";
 
 function getReplicationService(): ReplicationService {
     return new SocketReplicationService(settings.coordinator);
 }
 
-function getReplicationUseCase(action: Action): UseCase<unknown> {
-    if (Action.REPLICATE === action) {
-        return new ReplicateUseCase(getReplicationService());
-    }
-
-    if (Action.RESTORE === action) {
-        return new RestoreUseCase(getReplicationService());
-    }
-
-    return new class extends UseCase<unknown> {
-        get error(): string {
-            return "";
-        }
-
-        execute(): Promise<unknown> {
-            return Promise.resolve();
-        }
-    }
+function validateAction(action: string): action is Action {
+    return ['COMMIT', 'AZAR', 'ABORT'].includes(action);
 }
 
 export default function (): Router {
@@ -50,62 +28,37 @@ export default function (): Router {
 
     router.use(express.json());
 
-    type MobObjectGetterUseCaseFunction = (filter: string) => UseCase<MobObject[]>;
     router.route('/objetos')
         .post((req, res, next) => {
             const {body} = req as { body: MobObjectCreateRequest };
+            let message = '';
             if (body.name === undefined) {
-                res.status(HttpStatus.HTTP_STATUS_BAD_REQUEST).send('Missing required parameter `name`');
-            } else if (body.action === undefined) {
-                res.status(HttpStatus.HTTP_STATUS_BAD_REQUEST).send('Missing required parameter `action`');
+                message = 'Missing required parameter `name`';
+            }
+
+            if (message !== '') {
+                res.status(HttpStatus.HTTP_STATUS_BAD_REQUEST).send({message});
             } else {
                 next();
             }
         }, async (req, res) => {
             const {body} = req as { body: Required<MobObjectCreateRequest> };
-            const {name, action: actionName} = body;
-            const action: Action = Action[actionName as keyof typeof Action];
-            const useCase = new AddMobObject(repository, name, action);
+            const {name} = body;
+            const useCase = new AddMobObject(repository, name);
             const saved = await useCase.execute();
             if (saved) {
-                if (action === Action.REPLICATE) {
-                    const replicaUseCase: ReplicateUseCase = new ReplicateUseCase(getReplicationService());
-                    const result = await replicaUseCase.execute();
-                    if (!result) {
-                        console.error(`Error during replication:  ${replicaUseCase.error}`);
-                    } else {
-                        console.log(`Replication complete`);
-                    }
-                } else if (action === Action.RESTORE) {
-                    const restoreUseCase: RestoreUseCase = new RestoreUseCase(getReplicationService());
-                    const result = await restoreUseCase.execute();
-                    if (!result) {
-                        console.error(`Error during restoration: ${restoreUseCase.error}`);
-                    } else {
-                        // TODO: Restaurar los objetos
-                        console.log(`Restoration complete: ${result.length} items restored`);
-                    }
-                }
                 res.status(HttpStatus.HTTP_STATUS_CREATED)
                     .type(MIME_TYPES.APPLICATION_JSON)
-                    .header(HttpStatus.HTTP2_HEADER_LOCATION, `/api/mob-objects/${encodeURIComponent(name)}`)
+                    .header(HttpStatus.HTTP2_HEADER_LOCATION, `/api/objetos/${encodeURIComponent(name)}`)
                     .send();
             } else {
                 const error = useCase.error;
                 res.status(HttpStatus.HTTP_STATUS_INTERNAL_SERVER_ERROR)
-                    .send(`Internal Error Occurred during save: ${error}`);
+                    .send({message: `Internal Error Occurred during save: ${error}`});
             }
         })
         .get(async (req, res) => {
-            const {query} = req;
-            const DEFAULT_FILTER = '__all';
-            const useCaseFactory: Map<string, MobObjectGetterUseCaseFunction> = new Map<string, MobObjectGetterUseCaseFunction>([
-                ['action', (action) => new GetMobObjectsByAction(repository, action)],
-                [DEFAULT_FILTER, () => new GetAllMobObjects(repository)],
-            ]);
-            const knownFilters: string[] = [...useCaseFactory.keys()].slice(0, useCaseFactory.size - 2);
-            const filterName: string = knownFilters.find(filter => filter in query) || DEFAULT_FILTER;
-            const getterUserCase: UseCase<MobObject[]> = useCaseFactory.get(filterName)!(query[filterName] as string);
+            const getterUserCase: UseCase<MobObject[]> = new GetAllMobObjects(repository);
             const mobObjects: MobObject[] = await getterUserCase.execute();
             const responseList: MobObjectListResponseInstance[] = mobObjects.map(object => {
                 return {
@@ -121,37 +74,60 @@ export default function (): Router {
             res.status(HttpStatus.HTTP_STATUS_OK).send(responseList);
         });
 
-    router.route('/objetos/:name')
-        .get(async (req, res: Response<MobObjectListResponseInstance | { message: string }>) => {
-            const {params: {name}} = req;
-            const useCase: UseCase<MobObject | undefined> = new GetMobObjectByName(repository, decodeURIComponent(name));
-            const mobObject: MobObject | undefined = await useCase.execute();
-            if (mobObject === undefined) {
-                res.status(HttpStatus.HTTP_STATUS_NOT_FOUND).send({
-                    message: `Resource with name "${name}" not found.`
+    router.delete('/objetos/:name', async (req, res) => {
+        const {params: {name}} = req;
+        const useCase: UseCase<boolean> = new DeleteMobObject(repository, decodeURIComponent(name));
+        const wasDeleted = await useCase.execute();
+        if (wasDeleted) {
+            res.status(HttpStatus.HTTP_STATUS_NO_CONTENT).send();
+        } else {
+            res.status(HttpStatus.HTTP_STATUS_NOT_FOUND).send();
+        }
+    });
+
+    router.post('/objetos/replica',
+        (req, res, next) => {
+           const {body: {action}} = req;
+            if (!action || !validateAction(action)) {
+                res.status(HttpStatus.HTTP_STATUS_BAD_REQUEST).send({
+                    message: `Unknown action ${action}. action must be one of: "COMMIT", "ABORT", "AZAR"`
                 });
             } else {
-                res.status(HttpStatus.HTTP_STATUS_OK).send({
-                    ...mobObject,
-                    links: [
-                        {
-                            rel: '_self',
-                            uri: `/api/objetos/${encodeURIComponent(mobObject.name)}`
-                        }
-                    ]
-                });
+                next();
             }
-        })
-        .delete(async (req, res) => {
-            const {params: {name}} = req;
-            const useCase: UseCase<boolean> = new DeleteMobObject(repository, decodeURIComponent(name));
-            const wasDeleted = await useCase.execute();
-            if (wasDeleted) {
-                res.status(HttpStatus.HTTP_STATUS_NO_CONTENT).send();
+        },
+        async (req, res) => {
+            const {body: {action}} = req as {body: {action: Action}};
+            const useCase = new ReplicateUseCase(getReplicationService(), action);
+            const result = await useCase.execute();
+            let message: string;
+            let status: number;
+            if (!result) {
+                status = HttpStatus.HTTP_STATUS_INTERNAL_SERVER_ERROR;
+                console.error(message = `Error during replication:  ${useCase.error}`);
             } else {
-                res.status(HttpStatus.HTTP_STATUS_NOT_FOUND).send();
+                status = HttpStatus.HTTP_STATUS_OK;
+                console.log(message = `Replication complete`);
             }
+            res.status(status).send({message, result});
         });
+
+    router.get('/objetos/restauracion', async (req, res) => {
+        const useCase = new RestoreUseCase(getReplicationService());
+        const result = await useCase.execute();
+        let message: string;
+        let status: number;
+        if (result.count === -1) {
+            status = HttpStatus.HTTP_STATUS_INTERNAL_SERVER_ERROR
+            console.error(message = `Error during restoration: ${useCase.error}`);
+        } else {
+            // TODO: Restaurar los objetos
+            status = HttpStatus.HTTP_STATUS_OK
+            console.log(message = `Restoration complete: ${result.count} items restored`);
+            res.header(HttpStatus.HTTP2_HEADER_LOCATION, `/api/objetos`)
+        }
+        res.status(status).send({message, result});
+    });
 
     return router;
 }

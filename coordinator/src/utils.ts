@@ -1,5 +1,5 @@
-import * as fs from 'fs/promises';
 import path from "path";
+import fs from "fs/promises";
 
 export async function readFileContents(relativePath: string): Promise<string> {
     try {
@@ -12,21 +12,9 @@ export async function readFileContents(relativePath: string): Promise<string> {
 }
 
 export async function writeContentsToFile(relativePath: string, contents: string): Promise<boolean> {
-    console.log(`Writing ${contents} to ${path.resolve(process.cwd(), relativePath)}`);
+    console.log(`Writing ${contents} to ${path.join(__dirname, relativePath)}`);
     await fs.writeFile(path.resolve(process.cwd(), relativePath), contents, {
         encoding: 'utf-8'
     });
     return true;
-}
-
-/**
- * Returns a string representation of a variable, even if it's an object with not enough information. Useful for debugging purposes.
- * @param obj The variable to return a string representation of.
- */
-export function toString(obj: object | string | number): string {
-    if (obj.toString().startsWith('[object ')) {
-        return JSON.stringify(obj);
-    }
-
-    return obj.toString();
 }

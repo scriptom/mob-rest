@@ -1,13 +1,4 @@
-import {MobObject} from "../domain/mob-object";
-
-export interface RestoreResult {
-    error: string;
-    data: MobObject[];
-}
-
-export interface ReplicationResult {
-    error: string;
-}
+import {ReplicationResult, RestoreResult} from "../types";
 
 export abstract class RestoreService {
     abstract restoreObjects(): Promise<RestoreResult>;

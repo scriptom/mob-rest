@@ -6,16 +6,16 @@
     "socket.io-client": "^4.4.1"
   },
   "scripts": {
-    "start": "node dist/index.js",
-    "prestart": "npm run clean && npm run build",
+    "build": "npm run clean && npm run compile-install",
+    "compile-install": "tsc",
     "clean": "rimraf dist/",
-    "build": "tsc"
+    "prestart": "npm run build",
+    "start": "node dist/index.js"
   },
   "devDependencies": {
     "@types/node": "^16.11.17",
     "@typescript-eslint/eslint-plugin": "^5.8.0",
     "@typescript-eslint/parser": "^5.8.0",
-    "copyfiles": "^2.4.1",
     "eslint": "^8.5.0",
     "nodemon": "^2.0.15",
     "rimraf": "^3.0.2",

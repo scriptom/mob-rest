@@ -1,49 +1,39 @@
 import ReplicationService, {ReplicationResult, RestoreResult} from "../../application/replication-service";
 import {io, Socket} from "socket.io-client";
-
-const EMPTY_RESTORE_RESULT: RestoreResult = {
-    count: -1,
-    data: [],
-    error: {}
-};
-const EMPTY_REPLICATION_RESULT: ReplicationResult = {
-    message: '',
-    success: false
-};
+import {Action} from "../../domain/mob-object";
 
 export interface SocketConnInfo {
     host: string;
     port: number;
 }
 
-enum SocketEvent {
-    REPLICATE = 'ReplicarObjeto',
-    RESTORE = 'RestaurarObjeto'
-}
-
+type SocketEvent = 'ReplicarObjetos' | 'RestaurarObjetos';
 export default class SocketReplicationService implements ReplicationService {
     constructor(private readonly coordinator: SocketConnInfo) {
     }
 
     restoreReplicas(): Promise<RestoreResult> {
-        return this._emitToSocket(SocketEvent.RESTORE);
+        return this._emitToSocket('RestaurarObjetos');
     }
 
-    requestReplication(): Promise<ReplicationResult> {
-        return this._emitToSocket(SocketEvent.REPLICATE);
+    requestReplication(action: Action): Promise<ReplicationResult> {
+        return this._emitToSocket('ReplicarObjetos', action);
     }
 
-    private _emitToSocket<Response>(socketEvent: SocketEvent): Promise<Response> {
+    private _emitToSocket<Response>(socketEvent: SocketEvent, ...args: string[]): Promise<Response> {
         return new Promise<Response>((resolve, reject) => {
             try {
-                const socket: Socket = io(this.coordinator);
+                const {host, port} = this.coordinator;
+                const socket: Socket = io(`ws://${host}:${port}`);
                 socket.on('connect', () => {
-                    const {host, port} = this.coordinator;
                     console.log(`Server App Connected for ${socketEvent} to coordinator ${host}:${port}`);
-                    socket.emit(socketEvent, resolve);
+                    socket.emit(socketEvent, ...args, resolve);
                 });
-            } catch (e) {
-                reject(e);
+                socket.on('connect_error', (err => {
+                    reject(err.message);
+                }))
+            } catch (err) {
+                reject(err instanceof Error ? err.message : err as string);
             }
         });
     }

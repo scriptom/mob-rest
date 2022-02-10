@@ -1,10 +1,7 @@
-import {ReplicaService, ReplicationResult, RestoreResult, RestoreService} from "../application/services";
+import {ReplicaService, RestoreService} from "../application/services";
 import ReplicaServer from "../domain/replica-server";
 import {io, Socket} from "socket.io-client";
-
-export enum FirstPhase {
-
-}
+import {Action, ReplicationResult, RestoreRecount, RestoreResult} from "../types";
 
 export class SocketRestoreService implements RestoreService {
     private readonly RESTORE_REQUEST = 'RESTORE';
@@ -14,15 +11,15 @@ export class SocketRestoreService implements RestoreService {
 
     async restoreObjects(): Promise<RestoreResult> {
         return await Promise.race(this._servers.map((server: ReplicaServer) => {
+            const {host, port} = server;
+            const serverUrl = `ws://${host}:${port}`;
+            console.log(`Attempting to connect to ${serverUrl}`);
             return new Promise<RestoreResult>((resolve, reject) => {
                 try {
-                    const socket: Socket = io(server);
+                    const socket: Socket = io(serverUrl);
                     socket.on('connect', () => {
-                        const {host, port} = server;
-                        console.log(`Connected to replica server on host=${host} and port=${port} to attempt replication`);
-                        socket.emit(this.RESTORE_REQUEST, (data: string) => {
-                            resolve(JSON.parse(data));
-                        });
+                        console.log(`Connected to replica server on ${serverUrl} to attempt restoration`);
+                        socket.emit(this.RESTORE_REQUEST, resolve);
                     });
                 } catch (e) {
                     reject(e);
@@ -33,39 +30,44 @@ export class SocketRestoreService implements RestoreService {
 }
 
 type FirstPhaseResponse = 'VOTE_COMMIT' | 'VOTE_ABORT';
-type FirstPhaseSuggestion = FirstPhaseResponse | 'VOTE_RANDOM';
 type CommitVerdict = 'GLOBAL_COMMIT' | 'GLOBAL_ABORT';
 
 export class SocketReplicationService implements ReplicaService {
     private readonly VOTE_REQUEST = 'VOTE_REQUEST';
 
     constructor(private readonly _servers: ReplicaServer[],
-                private readonly _suggestion: FirstPhaseSuggestion) {
+                private readonly _suggestion: Action) {
     }
 
     async replicateObjects(objects: string): Promise<ReplicationResult> {
         // 1st phase: Send VOTE_REQUEST
         const voteResult = await this._initVoteCycle(this._suggestion);
+        console.log(`Vote Cycle ended. Decision: ${voteResult}`);
         const commitVerdict: CommitVerdict = voteResult === 'VOTE_COMMIT' ? 'GLOBAL_COMMIT' : 'GLOBAL_ABORT';
         // 2nd phase: broadcast our verdict
         const partialResults = await this._broadcastCommitResult(commitVerdict, commitVerdict === 'GLOBAL_COMMIT' ? objects : undefined);
+        // Carry all messages and reduce messages to inform caller
         return partialResults.reduce((previousValue, currentValue) => {
-            const errorsAcc = previousValue.error;
-            const newError = currentValue.error;
+            const errorsAcc = previousValue.message;
+            const newError = currentValue.message;
             return {
-                error: `${errorsAcc}
-${newError}`
+                message: `${errorsAcc}
+${newError}`.trim(),
+                success: previousValue.success && currentValue.success
             };
         });
     }
 
-    private async _initVoteCycle(suggestion: FirstPhaseSuggestion): Promise<FirstPhaseResponse> {
+    private async _initVoteCycle(suggestion: Action): Promise<FirstPhaseResponse> {
+        console.log('Initiating Commit Phase 1: Vote request');
         const voteResults = await Promise.all(this._servers.map((server: ReplicaServer) => {
+            const {host, port} = server;
+            const serverUrl = `ws://${host}:${port}`;
+            console.log(`Attempting to connect to ${serverUrl}`);
             return new Promise<FirstPhaseResponse>((resolve) => {
-                const socket: Socket = io(server);
+                const socket: Socket = io(serverUrl);
                 socket.on('connect', () => {
-                    const {host, port} = server;
-                    console.log(`Connected to Replica server host=${host} port=${port} to init voting process (SUGGESTION=${suggestion}`);
+                    console.log(`Connected to Replica server ${serverUrl} to init voting process [SUGGESTION=${suggestion}]`);
                     socket.emit(this.VOTE_REQUEST, suggestion, resolve);
                 });
             });
@@ -74,16 +76,21 @@ ${newError}`
     }
 
     private _broadcastCommitResult(result: CommitVerdict, content?: string): Promise<ReplicationResult[]> {
+        console.log('Initiating Commit Phase 2: Commit Verdict');
         return Promise.all(this._servers.map((server: ReplicaServer) => {
             return new Promise<ReplicationResult>(resolve => {
-                const socket: Socket = io(server);
+                const {host, port} = server;
+                const serverUrl = `ws://${host}:${port}`;
+                const socket: Socket = io(serverUrl);
                 socket.on('connect', () => {
-                    const {host, port} = server;
-                    console.log(`Connected to Replica server host=${host} port=${port} to broadcast result=${result}`);
-                    socket.emit(result, content || undefined, resolve);
+                    console.log(`Connected to Replica server ${serverUrl} to broadcast result=${result}`);
+                    if (result === 'GLOBAL_COMMIT') {
+                        socket.emit(result, content, resolve);
+                    } else {
+                        socket.emit(result, resolve);
+                    }
                 });
             });
         }));
     }
-
 }

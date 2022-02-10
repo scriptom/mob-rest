@@ -1,4 +1,4 @@
-import {MobObject} from "../domain/mob-object";
+import {Action} from "../domain/mob-object";
 
 export interface ReplicationResult {
     message: string;
@@ -6,12 +6,12 @@ export interface ReplicationResult {
 }
 
 export interface RestoreResult {
-    error: any | null;
-    data: MobObject[];
+    error: string | null;
     count: number
 }
 
 export default abstract class ReplicationService {
-    abstract requestReplication(): Promise<ReplicationResult>;
+    abstract requestReplication(action: Action): Promise<ReplicationResult>;
+
     abstract restoreReplicas(): Promise<RestoreResult>;
 }

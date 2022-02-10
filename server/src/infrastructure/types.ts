@@ -1,5 +1,4 @@
 export interface XmlMobObject {
-    action: string;
     name: string;
     dateAdded: string;
 }

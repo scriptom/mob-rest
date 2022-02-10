@@ -10,6 +10,7 @@
     "forceConsistentCasingInFileNames": true,
     "strict": true,
     "allowUnreachableCode": false,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "sourceMap": true
   }
 }
