@@ -18,7 +18,7 @@ export function mapXmlToMobObject(xmlMobObject: XmlMobObject): MobObject {
 export function mapMobObjectToXml(mobObject: MobObject): XmlMobObject {
     return {
         name: mobObject.name,
-        dateAdded: new Date(mobObject.timestamp).toLocaleDateString('es-VE')
+        dateAdded: new Date(mobObject.timestamp).toLocaleDateString('en-US')
     };
 }
 

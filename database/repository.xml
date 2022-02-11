@@ -1,6 +1,9 @@
 <objects>
-  <object name="Prueba" dateAdded="10/2/2022"/>
-  <object name="Otra pruebaaa" dateAdded="2/10/2022"/>
-  <object name="Nuevo Objeto Final" dateAdded="10/2/2022"/>
-  <object name="Se esta haciendo un commit" dateAdded="10/2/2022"/>
+  <object name="Objeto prueba 3" dateAdded="2/11/2022"/>
+  <object name="Objeto prueba 4" dateAdded="2/11/2022"/>
+  <object name="Objeto prueba 5" dateAdded="2/11/2022"/>
+  <object name="Objeto prueba 6" dateAdded="2/11/2022"/>
+  <object name="prueba de fechas" dateAdded="2/11/2022"/>
+  <object name="prueba de fechas 2" dateAdded="2/11/2022"/>
+  <object name="prueba de fechas 4" dateAdded="2/11/2022"/>
 </objects>

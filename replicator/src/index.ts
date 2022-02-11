@@ -22,6 +22,7 @@ io.on('connection', (socket: Socket) => {
                 vote = 'VOTE_COMMIT';
                 break;
         }
+        console.log(`After suggestion=${suggestion} decided to vote ${vote}`);
         callback(vote);
     });
     socket.on(<Command>'GLOBAL_ABORT', async (callback: (result: ReplicationResult) => void) => {
