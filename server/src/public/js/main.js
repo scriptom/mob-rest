@@ -144,11 +144,39 @@ function submitNewObject(name) {
     httpClient.post('/', {name})
         .then(() => {
             reloadTable(document.getElementById('table'));
-            showAlert('success', 'Object created successfully');
+            showAlert('success', 'Objeto creado exitosamente');
             toggleLoader(false);
         })
         .catch((error) => {
             toggleLoader(false);
             showAlert('danger', error.message);
         });
+}
+
+function replicate(action){
+    toggleLoader(true);
+    httpClient.post('/replica',{action})
+        .then(()=>{
+            reloadTable(document.getElementById('table'))
+            showAlert('success', 'Replicación exitosa');
+            toggleLoader(false);
+        })
+        .catch((error)=>{
+            toggleLoader(false);
+            showAlert('danger', error.message);
+        })
+}
+
+function restore(){
+    toggleLoader(true);
+    httpClient.get('/restauracion')
+        .then(()=>{
+            reloadTable(document.getElementById('table'))
+            showAlert('success', 'Restauración exitosa');
+            toggleLoader(false);
+        })
+        .catch((error)=>{
+            toggleLoader(false);
+            showAlert('danger', error.message);
+        })
 }

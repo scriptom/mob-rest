@@ -18,16 +18,34 @@
             <div id="alert-container"></div>
         </div>
     </div>
-    <div class="row">
-        <div class="col-3">
-            <label for="name" class="visually-hidden">Nombre de nuevo objeto</label>
-            <input type="text" placeholder="Nombre..." name="name" class="form-control" id="name">
-            <button id="submit" class="btn btn-primary">
+    <div class="row mb-3">
+        <div class="col-3 row">
+            <div class="col-8">
+                <label for="name" class="visually-hidden">Nombre de nuevo objeto</label>
+                <input type="text" placeholder="Nombre..." name="name" class="form-control" id="name">
+            </div>
+            <button id="submit" class="btn btn-primary col-3 ml-auto">
                 Crear
-                <i class="bi-arrow-right-circle"></i>
             </button>
         </div>
-        <div class="col-3"></div>
+        <div class="col-3">
+            <div class="input-group">
+                <button class="btn btn-secondary" type="button" id="replicar">Replicar</button>
+                <select class="form-select" id="action-rep">
+                    <option value="COMMIT" selected>COMMIT</option>
+                    <option value="ABORT">ABORT</option>
+                    <option value="AZAR">AZAR</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="col-2 row">
+            <button id="restauracion" class="btn btn-warning w-75 ms-2">Restauración</button>
+        </div>
+
+        <div class="col-2">
+            <button id="recargar" class="btn btn-info text-white ml-auto w-50">Recargar</button>
+        </div>
     </div>
     <div class="row">
         <div class="col-12">
@@ -49,12 +67,28 @@
         crossorigin="anonymous"></script>
 <script src="js/main.js"></script>
 <script type="application/javascript">
+
     document.getElementById('submit').addEventListener('click', function (event) {
         const name = document.getElementById('name').value;
         if (name.length > 0) {
             submitNewObject(name);
         }
+        document.getElementById('submit').value = ""
     });
+
+    document.getElementById('replicar').addEventListener('click', function (event) {
+        const action = document.getElementById('action-rep').value;
+        replicate(action)
+    });
+
+    document.getElementById('restauracion').addEventListener('click', function (event) {
+        restore()
+    });
+
+    document.getElementById('recargar').addEventListener('click', function (event) {
+        reloadTable(document.getElementById('table'));
+    });
+
     reloadTable(document.getElementById('table'));
 </script>
 </body>
